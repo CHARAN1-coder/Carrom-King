@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zentro Carrom | Grandmaster</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Outfit:wght@300;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --p: #00f2ff; --s: #7000ff; --bg: #020408;
+            --panel: rgba(255, 255, 255, 0.05);
+        }
+        body {
+            margin: 0; background: var(--bg); color: #fff;
+            font-family: 'Outfit', sans-serif; overflow: hidden;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;
+        }
+
+        /* Side Control Panel */
+        .ui-main {
+            position: absolute; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 30px;
+        }
+
+        .header-stats {
+            display: flex; justify-content: space-between; pointer-events: auto;
+        }
+
+        .stat-card {
+            background: var(--panel); backdrop-filter: blur(20px);
+            padding: 15px 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);
+            text-align: center; min-width: 120px;
+        }
+
+        .val { display: block; font-family: 'Orbitron'; font-size: 1.5rem; color: var(--p); }
+        .lbl { font-size: 0.7rem; letter-spacing: 1px; opacity: 0.6; text-transform: uppercase; }
+
+        /* Power Bar UI */
+        .power-wrapper {
+            position: absolute; right: 40px; top: 50%; transform: translateY(-50%);
+            height: 300px; width: 12px; background: rgba(255,255,255,0.1);
+            border-radius: 10px; overflow: hidden; pointer-events: auto;
+        }
+        #power-fill {
+            position: absolute; bottom: 0; width: 100%; background: linear-gradient(to top, var(--s), var(--p));
+            height: 0%; transition: 0.1s;
+        }
+
+        /* Striker Slider */
+        .slider-container {
+            width: 400px; height: 60px; background: var(--panel);
+            backdrop-filter: blur(10px); border-radius: 30px; border: 1px solid rgba(255,255,255,0.1);
+            display: flex; align-items: center; padding: 0 20px; pointer-events: auto;
+        }
+        #striker-slider {
+            width: 100%; cursor: pointer; accent-color: var(--p);
+        }
+
+        .footer {
+            display: flex; justify-content: space-between; width: 600px; 
+            margin-top: 15px; font-family: 'Orbitron'; font-size: 0.7rem;
+        }
+
+        .tag-cre { background: linear-gradient(45deg, var(--p), var(--s)); padding: 6px 15px; border-radius: 50px; font-weight: bold; }
+
+        #game-canvas {
+            border: 15px solid #2a1b0a; border-radius: 25px;
+            box-shadow: 0 0 100px rgba(0,0,0,0.8), 0 0 30px rgba(0, 242, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ui-main">
+        <div class="header-stats">
+            <div class="stat-card">
+                <span class="lbl">Player Points</span>
+                <span class="val" id="score-val">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="lbl">Turn</span>
+                <span class="val" id="turn-txt" style="font-size: 1rem; color: #fff;">READY</span>
+            </div>
+            <div class="stat-card">
+                <span class="lbl">Coins Left</span>
+                <span class="val" id="coin-val">19</span>
+            </div>
+        </div>
+
+        <div class="power-wrapper">
+            <div id="power-fill"></div>
+        </div>
+
+        <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+            <div class="slider-container">
+                <span style="margin-right: 15px; font-size: 0.8rem; opacity: 0.5;">SLIDE</span>
+                <input type="range" id="striker-slider" min="100" max="500" value="300">
+            </div>
+        </div>
+    </div>
+
+    <div id="game-canvas"></div>
+
+    <div class="footer">
+        <div style="opacity: 0.4; letter-spacing: 3px;">POWERED BY CHARAN</div>
+        <div class="tag-cre">Created By Akshay</div>
+    </div>
+
+    <script>
+        const config = {
+            type: Phaser.AUTO,
+            width: 600, height: 600,
+            parent: 'game-canvas',
+            backgroundColor: '#4e342e',
+            physics: {
+                default: 'arcade',
+                arcade: { friction: 0.1, gravity: { y: 0 }, debug: false }
+            },
+            scene: { preload, create, update }
+        };
+
+        let striker, coins, pockets, isAiming = false, graphics;
+        let score = 0, coinsRemaining = 19;
+        const game = new Phaser.Game(config);
+
+        function preload() {}
+
+        function create() {
+            // Board Background Design
+            let bg = this.add.graphics();
+            bg.lineStyle(2, 0xffffff, 0.1);
+            bg.strokeCircle(300, 300, 80); // Outer circle
+            bg.strokeCircle(300, 300, 85);
+            bg.strokeRect(40, 40, 520, 520); // Inner frame
+
+            // Pockets
+            pockets = this.physics.add.staticGroup();
+            [[25,25], [575,25], [25,575], [575,575]].forEach(pos => {
+                let p = this.add.circle(pos[0], pos[1], 28, 0x000000);
+                pockets.add(p);
+            });
+
+            // Coins Setup
+            coins = this.physics.add.group({ bounceX: 0.8, bounceY: 0.8, dragX: 120, dragY: 120 });
+            
+            // Queen (Pink)
+            createCoin(this, 300, 300, 0xff007a);
+            
+            // Black and White Coins
+            for(let i=0; i<18; i++) {
+                let angle = (i/18) * Math.PI * 2;
+                let r = i < 6 ? 35 : 70;
+                let col = i % 2 === 0 ? 0x000000 : 0xffffff;
+                createCoin(this, 300 + Math.cos(angle)*r, 300 + Math.sin(angle)*r, col);
+            }
+
+            // Striker
+            striker = this.add.circle(300, 485, 22, 0x00f2ff);
+            this.physics.add.existing(striker);
+            striker.body.setCircle(22);
+            striker.body.setCollideWorldBounds(true, 0.7, 0.7);
+            striker.body.setDamping(true);
+            striker.body.setDrag(0.98);
+
+            // UI Slider Sync
+            document.getElementById('striker-slider').addEventListener('input', (e) => {
+                if(striker.body.speed < 1) striker.x = e.target.value;
+            });
+
+            // Physics Collisions
+            this.physics.add.collider(striker, coins);
+            this.physics.add.collider(coins, coins);
+            
+            // Interaction Logic
+            graphics = this.add.graphics();
+            this.input.on('pointerdown', () => { if(striker.body.speed < 1) isAiming = true; });
+            this.input.on('pointerup', (p) => {
+                if(isAiming) {
+                    let angle = Phaser.Math.Angle.Between(p.x, p.y, striker.x, striker.y);
+                    let dist = Phaser.Math.Distance.Between(striker.x, striker.y, p.x, p.y);
+                    let speed = Math.min(dist * 6, 1500);
+                    this.physics.velocityFromRotation(angle, speed, striker.body.velocity);
+                    isAiming = false; graphics.clear();
+                    document.getElementById('power-fill').style.height = '0%';
+                }
+            });
+
+            // Overlap detection
+            this.physics.add.overlap(coins, pockets, (c, p) => {
+                c.destroy(); score += 25; coinsRemaining--;
+                updateUI();
+            });
+            this.physics.add.overlap(striker, pockets, () => {
+                score = Math.max(0, score - 50);
+                resetStriker();
+                updateUI();
+            });
+        }
+
+        function createCoin(scene, x, y, color) {
+            let c = scene.add.circle(x, y, 14, color);
+            scene.physics.add.existing(c);
+            c.body.setCircle(14);
+            c.body.setCollideWorldBounds(true, 0.8, 0.8);
+            c.body.setDamping(true);
+            c.body.setDrag(0.985);
+            coins.add(c);
+        }
+
+        function update() {
+            if(isAiming) {
+                let p = this.input.activePointer;
+                graphics.clear();
+                graphics.lineStyle(2, 0x00f2ff, 0.5);
+                graphics.strokeLineShape(new Phaser.Geom.Line(striker.x, striker.y, p.x, p.y));
+                let pwr = Math.min(Phaser.Math.Distance.Between(striker.x, striker.y, p.x, p.y) / 3, 100);
+                document.getElementById('power-fill').style.height = pwr + '%';
+            }
+
+            if(striker.body.speed < 2 && striker.y < 450 && !isAiming) {
+                resetStriker();
+            }
+        }
+
+        function resetStriker() {
+            striker.body.setVelocity(0);
+            striker.setPosition(document.getElementById('striker-slider').value, 485);
+        }
+
+        function updateUI() {
+            document.getElementById('score-val').innerText = score;
+            document.getElementById('coin-val').innerText = coinsRemaining;
+            if(coinsRemaining === 0) alert("CONGRATULATIONS! Board Cleared.");
+        }
+    </script>
+</body>
+</html>

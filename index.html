@@ -3,235 +3,245 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zentro Carrom | Grandmaster</title>
+    <title>Zentro Carrom | World Championship</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Outfit:wght@300;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --p: #00f2ff; --s: #7000ff; --bg: #020408;
-            --panel: rgba(255, 255, 255, 0.05);
+            --p: #00f2ff; --s: #7000ff; --accent: #ff007a; --bg: #05070a;
+            --panel: rgba(255, 255, 255, 0.03);
         }
         body {
             margin: 0; background: var(--bg); color: #fff;
             font-family: 'Outfit', sans-serif; overflow: hidden;
             display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;
+            background-image: radial-gradient(circle at 50% 50%, #0d1117 0%, #05070a 100%);
         }
 
-        /* Side Control Panel */
-        .ui-main {
+        /* High-End HUD */
+        .hud {
             position: absolute; width: 100%; height: 100%;
-            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 30px;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 25px;
         }
 
-        .header-stats {
-            display: flex; justify-content: space-between; pointer-events: auto;
+        .top-row { display: flex; justify-content: space-between; pointer-events: auto; }
+        .score-box {
+            background: var(--panel); backdrop-filter: blur(25px);
+            padding: 20px 40px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.08);
+            text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
-        .stat-card {
-            background: var(--panel); backdrop-filter: blur(20px);
-            padding: 15px 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);
-            text-align: center; min-width: 120px;
-        }
+        .val { display: block; font-family: 'Orbitron'; font-size: 1.8rem; font-weight: 900; color: var(--p); text-shadow: 0 0 10px var(--p); }
+        .lbl { font-size: 0.65rem; letter-spacing: 2px; opacity: 0.5; text-transform: uppercase; margin-top: 5px; }
 
-        .val { display: block; font-family: 'Orbitron'; font-size: 1.5rem; color: var(--p); }
-        .lbl { font-size: 0.7rem; letter-spacing: 1px; opacity: 0.6; text-transform: uppercase; }
-
-        /* Power Bar UI */
-        .power-wrapper {
+        /* Power & Control */
+        .side-ctrl {
             position: absolute; right: 40px; top: 50%; transform: translateY(-50%);
-            height: 300px; width: 12px; background: rgba(255,255,255,0.1);
-            border-radius: 10px; overflow: hidden; pointer-events: auto;
+            display: flex; flex-direction: column; align-items: center; gap: 15px;
         }
-        #power-fill {
-            position: absolute; bottom: 0; width: 100%; background: linear-gradient(to top, var(--s), var(--p));
-            height: 0%; transition: 0.1s;
+        .power-meter {
+            height: 250px; width: 15px; background: rgba(255,255,255,0.05);
+            border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);
         }
+        #power-fill { width: 100%; background: linear-gradient(to top, var(--s), var(--p)); height: 0%; transition: 0.1s; }
 
-        /* Striker Slider */
-        .slider-container {
-            width: 400px; height: 60px; background: var(--panel);
-            backdrop-filter: blur(10px); border-radius: 30px; border: 1px solid rgba(255,255,255,0.1);
-            display: flex; align-items: center; padding: 0 20px; pointer-events: auto;
+        .slider-wrap {
+            background: var(--panel); backdrop-filter: blur(15px);
+            padding: 15px 30px; border-radius: 40px; border: 1px solid rgba(255,255,255,0.1);
+            display: flex; align-items: center; gap: 20px; pointer-events: auto;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
         }
-        #striker-slider {
-            width: 100%; cursor: pointer; accent-color: var(--p);
-        }
+        #striker-pos { width: 350px; cursor: pointer; accent-color: var(--p); }
 
         .footer {
-            display: flex; justify-content: space-between; width: 600px; 
-            margin-top: 15px; font-family: 'Orbitron'; font-size: 0.7rem;
+            display: flex; justify-content: space-between; width: 630px; 
+            margin-top: 20px; font-family: 'Orbitron'; font-size: 0.7rem;
         }
+        .powered-tag { opacity: 0.3; letter-spacing: 4px; }
+        .creator-tag { background: linear-gradient(90deg, var(--p), var(--s)); padding: 6px 20px; border-radius: 50px; font-weight: bold; }
 
-        .tag-cre { background: linear-gradient(45deg, var(--p), var(--s)); padding: 6px 15px; border-radius: 50px; font-weight: bold; }
-
-        #game-canvas {
-            border: 15px solid #2a1b0a; border-radius: 25px;
-            box-shadow: 0 0 100px rgba(0,0,0,0.8), 0 0 30px rgba(0, 242, 255, 0.2);
+        #board-container {
+            border: 12px solid #1a1a1a; border-radius: 30px;
+            box-shadow: 0 0 80px rgba(0, 242, 255, 0.15);
+            position: relative;
         }
     </style>
 </head>
 <body>
 
-    <div class="ui-main">
-        <div class="header-stats">
-            <div class="stat-card">
+    <div class="hud">
+        <div class="top-row">
+            <div class="score-box">
                 <span class="lbl">Player Points</span>
-                <span class="val" id="score-val">0</span>
+                <span class="val" id="points">000</span>
             </div>
-            <div class="stat-card">
-                <span class="lbl">Turn</span>
-                <span class="val" id="turn-txt" style="font-size: 1rem; color: #fff;">READY</span>
+            <div class="score-box" style="border-color: var(--s);">
+                <span class="lbl">Turn Status</span>
+                <span class="val" id="status" style="font-size: 1.2rem; color: #fff;">AIMING</span>
             </div>
-            <div class="stat-card">
-                <span class="lbl">Coins Left</span>
-                <span class="val" id="coin-val">19</span>
+            <div class="score-box">
+                <span class="lbl">Target Coins</span>
+                <span class="val" id="coins-left">19</span>
             </div>
         </div>
 
-        <div class="power-wrapper">
-            <div id="power-fill"></div>
+        <div class="side-ctrl">
+            <span class="lbl" style="writing-mode: vertical-lr; margin-bottom: 10px;">FORCE</span>
+            <div class="power-meter"><div id="power-fill"></div></div>
         </div>
 
         <div style="display: flex; justify-content: center; margin-bottom: 20px;">
-            <div class="slider-container">
-                <span style="margin-right: 15px; font-size: 0.8rem; opacity: 0.5;">SLIDE</span>
-                <input type="range" id="striker-slider" min="100" max="500" value="300">
+            <div class="slider-wrap">
+                <span class="lbl">ADJUST POSITION</span>
+                <input type="range" id="striker-pos" min="100" max="500" value="300">
             </div>
         </div>
     </div>
 
-    <div id="game-canvas"></div>
+    <div id="board-container"></div>
 
     <div class="footer">
-        <div style="opacity: 0.4; letter-spacing: 3px;">POWERED BY CHARAN</div>
-        <div class="tag-cre">Created By Akshay</div>
+        <div class="powered-tag">POWERED BY CHARAN</div>
+        <div class="creator-tag">Created By Akshay</div>
     </div>
 
     <script>
         const config = {
             type: Phaser.AUTO,
             width: 600, height: 600,
-            parent: 'game-canvas',
-            backgroundColor: '#4e342e',
+            parent: 'board-container',
+            backgroundColor: '#3e2723',
             physics: {
                 default: 'arcade',
-                arcade: { friction: 0.1, gravity: { y: 0 }, debug: false }
+                arcade: { friction: 0.15, gravity: { y: 0 } }
             },
             scene: { preload, create, update }
         };
 
-        let striker, coins, pockets, isAiming = false, graphics;
-        let score = 0, coinsRemaining = 19;
+        let striker, coins, pockets, isDragging = false, aimLine;
+        let score = 0, count = 19, canShoot = true;
         const game = new Phaser.Game(config);
 
         function preload() {}
 
         function create() {
-            // Board Background Design
-            let bg = this.add.graphics();
-            bg.lineStyle(2, 0xffffff, 0.1);
-            bg.strokeCircle(300, 300, 80); // Outer circle
-            bg.strokeCircle(300, 300, 85);
-            bg.strokeRect(40, 40, 520, 520); // Inner frame
+            // High-End Board Texture
+            let b = this.add.graphics();
+            b.lineStyle(3, 0xffffff, 0.05);
+            b.strokeCircle(300, 300, 90);
+            b.strokeCircle(300, 300, 95);
+            b.lineStyle(2, 0xffffff, 0.2);
+            b.strokeRect(45, 45, 510, 510); // Boundary Line
 
-            // Pockets
+            // Pockets with Shadow Effect
             pockets = this.physics.add.staticGroup();
-            [[25,25], [575,25], [25,575], [575,575]].forEach(pos => {
-                let p = this.add.circle(pos[0], pos[1], 28, 0x000000);
-                pockets.add(p);
+            [[22,22], [578,22], [22,578], [578,578]].forEach(p => {
+                this.add.circle(p[0], p[1], 30, 0x000000);
+                let pocket = this.add.circle(p[0], p[1], 25, 0x111111);
+                pockets.add(pocket);
             });
 
-            // Coins Setup
-            coins = this.physics.add.group({ bounceX: 0.8, bounceY: 0.8, dragX: 120, dragY: 120 });
+            // Coins Initialization
+            coins = this.physics.add.group({ bounceX: 0.8, bounceY: 0.8, dragX: 130, dragY: 130 });
             
-            // Queen (Pink)
-            createCoin(this, 300, 300, 0xff007a);
+            // Queen
+            spawnPiece(this, 300, 300, 0xff007a, 16);
             
-            // Black and White Coins
+            // Circular Coin Formation
             for(let i=0; i<18; i++) {
                 let angle = (i/18) * Math.PI * 2;
-                let r = i < 6 ? 35 : 70;
+                let r = i < 6 ? 38 : 75;
                 let col = i % 2 === 0 ? 0x000000 : 0xffffff;
-                createCoin(this, 300 + Math.cos(angle)*r, 300 + Math.sin(angle)*r, col);
+                spawnPiece(this, 300 + Math.cos(angle)*r, 300 + Math.sin(angle)*r, col, 14);
             }
 
-            // Striker
-            striker = this.add.circle(300, 485, 22, 0x00f2ff);
+            // Striker Logic
+            striker = this.add.circle(300, 480, 24, 0x00f2ff);
             this.physics.add.existing(striker);
-            striker.body.setCircle(22);
-            striker.body.setCollideWorldBounds(true, 0.7, 0.7);
+            striker.body.setCircle(24);
+            striker.body.setCollideWorldBounds(true, 0.6, 0.6);
             striker.body.setDamping(true);
             striker.body.setDrag(0.98);
 
-            // UI Slider Sync
-            document.getElementById('striker-slider').addEventListener('input', (e) => {
-                if(striker.body.speed < 1) striker.x = e.target.value;
-            });
-
-            // Physics Collisions
+            // Colliders
             this.physics.add.collider(striker, coins);
             this.physics.add.collider(coins, coins);
             
-            // Interaction Logic
-            graphics = this.add.graphics();
-            this.input.on('pointerdown', () => { if(striker.body.speed < 1) isAiming = true; });
-            this.input.on('pointerup', (p) => {
-                if(isAiming) {
-                    let angle = Phaser.Math.Angle.Between(p.x, p.y, striker.x, striker.y);
-                    let dist = Phaser.Math.Distance.Between(striker.x, striker.y, p.x, p.y);
-                    let speed = Math.min(dist * 6, 1500);
-                    this.physics.velocityFromRotation(angle, speed, striker.body.velocity);
-                    isAiming = false; graphics.clear();
-                    document.getElementById('power-fill').style.height = '0%';
-                }
+            // Goal Detection
+            this.physics.add.overlap(coins, pockets, (c) => {
+                c.destroy(); score += 50; count--;
+                updateStats();
             });
 
-            // Overlap detection
-            this.physics.add.overlap(coins, pockets, (c, p) => {
-                c.destroy(); score += 25; coinsRemaining--;
-                updateUI();
-            });
             this.physics.add.overlap(striker, pockets, () => {
-                score = Math.max(0, score - 50);
-                resetStriker();
-                updateUI();
+                score = Math.max(0, score - 20);
+                forceResetStriker();
+            });
+
+            // Controls
+            aimLine = this.add.graphics();
+            document.getElementById('striker-pos').addEventListener('input', (e) => {
+                if(canShoot) striker.x = e.target.value;
+            });
+
+            this.input.on('pointerdown', () => { if(canShoot) isDragging = true; });
+            this.input.on('pointerup', (p) => {
+                if(isDragging) {
+                    let angle = Phaser.Math.Angle.Between(p.x, p.y, striker.x, striker.y);
+                    let dist = Phaser.Math.Distance.Between(striker.x, striker.y, p.x, p.y);
+                    let speed = Math.min(dist * 6.5, 1800);
+                    
+                    this.physics.velocityFromRotation(angle, speed, striker.body.velocity);
+                    isDragging = false;
+                    canShoot = false;
+                    aimLine.clear();
+                    document.getElementById('power-fill').style.height = '0%';
+                    document.getElementById('status').innerText = "ROLLING...";
+                }
             });
         }
 
-        function createCoin(scene, x, y, color) {
-            let c = scene.add.circle(x, y, 14, color);
-            scene.physics.add.existing(c);
-            c.body.setCircle(14);
-            c.body.setCollideWorldBounds(true, 0.8, 0.8);
-            c.body.setDamping(true);
-            c.body.setDrag(0.985);
-            coins.add(c);
+        function spawnPiece(scene, x, y, col, rad) {
+            let p = scene.add.circle(x, y, rad, col);
+            scene.physics.add.existing(p);
+            p.body.setCircle(rad);
+            p.body.setCollideWorldBounds(true, 0.8, 0.8);
+            p.body.setDamping(true);
+            p.body.setDrag(0.98);
+            coins.add(p);
         }
 
         function update() {
-            if(isAiming) {
+            if(isDragging) {
                 let p = this.input.activePointer;
-                graphics.clear();
-                graphics.lineStyle(2, 0x00f2ff, 0.5);
-                graphics.strokeLineShape(new Phaser.Geom.Line(striker.x, striker.y, p.x, p.y));
+                aimLine.clear();
+                aimLine.lineStyle(2, 0x00f2ff, 0.4);
+                aimLine.strokeLineShape(new Phaser.Geom.Line(striker.x, striker.y, p.x, p.y));
                 let pwr = Math.min(Phaser.Math.Distance.Between(striker.x, striker.y, p.x, p.y) / 3, 100);
                 document.getElementById('power-fill').style.height = pwr + '%';
             }
 
-            if(striker.body.speed < 2 && striker.y < 450 && !isAiming) {
-                resetStriker();
+            // --- THE AUTO-TURN LOGIC ---
+            // Check if all objects have stopped moving
+            let allStopped = striker.body.speed < 1;
+            coins.getChildren().forEach(c => { if(c.body.speed > 1) allStopped = false; });
+
+            if(!canShoot && allStopped) {
+                forceResetStriker();
             }
         }
 
-        function resetStriker() {
+        function forceResetStriker() {
+            canShoot = true;
             striker.body.setVelocity(0);
-            striker.setPosition(document.getElementById('striker-slider').value, 485);
+            striker.y = 480;
+            striker.x = document.getElementById('striker-pos').value;
+            document.getElementById('status').innerText = "AIMING";
         }
 
-        function updateUI() {
-            document.getElementById('score-val').innerText = score;
-            document.getElementById('coin-val').innerText = coinsRemaining;
-            if(coinsRemaining === 0) alert("CONGRATULATIONS! Board Cleared.");
+        function updateStats() {
+            document.getElementById('points').innerText = score;
+            document.getElementById('coins-left').innerText = count;
         }
     </script>
 </body>
